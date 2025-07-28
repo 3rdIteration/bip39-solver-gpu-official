@@ -52,7 +52,7 @@ void hmac_sha512(uchar *key, int key_length_bytes, uchar *message, int message_l
     inner_concat[x+128] = message[x];
   }
 
-  sha512(&inner_concat, 128+message_length_bytes, output);
+  sha512(inner_concat, 128+message_length_bytes, output);
 
   for(int x=0;x<128;x++){
     inner_concat[x] = opad_key[x];
@@ -61,17 +61,17 @@ void hmac_sha512(uchar *key, int key_length_bytes, uchar *message, int message_l
     inner_concat[x+128] = output[x];
   }
 
-  sha512(&inner_concat, 192, output);
+  sha512(inner_concat, 192, output);
 }
 
 void new_master_from_seed(uchar network, uchar *seed, extended_private_key_t * master) {
   uchar key[12] = { 0x42, 0x69, 0x74, 0x63, 0x6f, 0x69, 0x6e, 0x20, 0x73, 0x65, 0x65, 0x64 };
   uchar hmacsha512_result[64] = { 0 };
-  hmac_sha512(&key, 12, seed, 64, &hmacsha512_result);
+  hmac_sha512(key, 12, seed, 64, hmacsha512_result);
   private_key_t pkey;
   pkey.compressed = false;
   pkey.network = network;
-  memcpy_offset(&pkey.key, &hmacsha512_result, 0, 32);
+  memcpy_offset(pkey.key, hmacsha512_result, 0, 32);
   master->network = network;
   master->depth = 0;
   master->parent_fingerprint[0] = 0x00;
@@ -80,15 +80,15 @@ void new_master_from_seed(uchar network, uchar *seed, extended_private_key_t * m
   master->parent_fingerprint[3] = 0x00;
   master->child_number = 0;
   master->private_key = pkey;
-  memcpy_offset(&master->chain_code, &hmacsha512_result, 32, 32);
+  memcpy_offset(master->chain_code, hmacsha512_result, 32, 32);
 }
 
 void public_from_private(extended_private_key_t *priv, extended_public_key_t *pub) {
   pub->network = priv->network;
   pub->depth = priv->depth;
   pub->child_number = priv->child_number;
-  memcpy(&pub->parent_fingerprint,&priv->parent_fingerprint, 4);
-  memcpy(&pub->chain_code, &priv->chain_code, 32);
+  memcpy(pub->parent_fingerprint, priv->parent_fingerprint, 4);
+  memcpy(pub->chain_code, priv->chain_code, 32);
   secp256k1_ec_pubkey_create(&pub->public_key.key, &priv->private_key.key);
 }
 
@@ -107,19 +107,19 @@ void sha256d(uchar *input, int input_len, char * output) {
 
 void hash160(uchar *input, int input_len, char * output) {
   uchar sha256_result[32] = { 0 };
-  sha256(input, input_len, &sha256_result);
-  ripemd160(&sha256_result, 32, output);
+  sha256(input, input_len, sha256_result);
+  ripemd160(sha256_result, 32, output);
 }
 
 void identifier_for_public_key(extended_public_key_t *pub, uchar *identifier) {
   uchar serialized_key[33] = {0};
-  serialized_public_key(pub, &serialized_key);
-  hash160(&serialized_key, 33, identifier);
+  serialized_public_key(pub, serialized_key);
+  hash160(serialized_key, 33, identifier);
 }
 
 void fingerprint_for_public_key(extended_public_key_t *pub, uchar *fingerprint) {
   uchar identifier[20] = { 0 };
-  identifier_for_public_key(pub, &identifier);
+  identifier_for_public_key(pub, identifier);
   fingerprint[0] = identifier[0];
   fingerprint[1] = identifier[1];
   fingerprint[2] = identifier[2];
@@ -128,7 +128,7 @@ void fingerprint_for_public_key(extended_public_key_t *pub, uchar *fingerprint) 
 
 void p2shwpkh_address_for_public_key(extended_public_key_t *pub, uchar *address_bytes) {
   uchar pubkey_hash[20] = { 0 };
-  identifier_for_public_key(pub, &pubkey_hash);
+  identifier_for_public_key(pub, pubkey_hash);
 
   uchar wpkh_script_bytes[22] = { 0 };
   wpkh_script_bytes[0] = 0x00; // version byte
@@ -138,7 +138,7 @@ void p2shwpkh_address_for_public_key(extended_public_key_t *pub, uchar *address_
   }
 
   uchar wpkh_script_hash[20] = { 0 };
-  hash160(&wpkh_script_bytes, 22, &wpkh_script_hash);
+  hash160(wpkh_script_bytes, 22, wpkh_script_hash);
 
   address_bytes[0] = 5; // bitcoin mainnet; 196 for testnet
 
@@ -147,7 +147,7 @@ void p2shwpkh_address_for_public_key(extended_public_key_t *pub, uchar *address_
   }
   
   uchar sha256d_result[32] = { 0 };
-  sha256d(address_bytes, 21, &sha256d_result);
+  sha256d(address_bytes, 21, sha256d_result);
 
   // append checksum
   address_bytes[21] = sha256d_result[0];
@@ -161,23 +161,23 @@ void normal_private_child_from_private(extended_private_key_t *parent, extended_
   extended_public_key_t pub;
   public_from_private(parent, &pub);
   uchar hmac_input[37] = {0};
-  serialized_public_key(&pub, &hmac_input);
+  serialized_public_key(&pub, hmac_input);
   hmac_input[33] = normal_child_number >> 24;
   hmac_input[34] = (normal_child_number & 0x00FF0000) >> 16;
   hmac_input[35] = (normal_child_number & 0x0000FF00) >> 8;
   hmac_input[36] = (normal_child_number & 0x000000FF);
-  hmac_sha512(&parent->chain_code, 32, &hmac_input, 37, &hmacsha512_result);
+  hmac_sha512(parent->chain_code, 32, hmac_input, 37, hmacsha512_result);
 
   private_key_t sk;
   sk.compressed = true;
   sk.network = parent->network;
-  memcpy(&sk.key, &hmacsha512_result, 32);
+  memcpy(sk.key, hmacsha512_result, 32);
   secp256k1_ec_seckey_tweak_add(&sk.key, &parent->private_key.key);
   child->network = parent->network;
   child->depth = parent->depth + 1;
   child->child_number = normal_child_number;
   child->private_key = sk;
-  memcpy_offset(&child->chain_code, &hmacsha512_result, 32, 32);
+  memcpy_offset(child->chain_code, hmacsha512_result, 32, 32);
 }
 
 void hardened_private_child_from_private(extended_private_key_t *parent, extended_private_key_t *child, uint hardened_child_number) {
@@ -193,16 +193,16 @@ void hardened_private_child_from_private(extended_private_key_t *parent, extende
   hmac_input[35] = (child_number & 0x0000FF00) >> 8;
   hmac_input[36] = (child_number & 0x000000FF);
   
-  hmac_sha512(&parent->chain_code, 32, &hmac_input, 37, &hmacsha512_result);
+  hmac_sha512(parent->chain_code, 32, hmac_input, 37, hmacsha512_result);
   
   private_key_t sk;
   sk.compressed = true;
   sk.network = parent->network;
-  memcpy(&sk.key, &hmacsha512_result, 32);
+  memcpy(sk.key, hmacsha512_result, 32);
   secp256k1_ec_seckey_tweak_add(&sk.key, &parent->private_key.key);
   child->network = parent->network;
   child->depth = parent->depth + 1;
   child->child_number = child_number;
   child->private_key = sk;
-  memcpy_offset(&child->chain_code, &hmacsha512_result, 32, 32);
+  memcpy_offset(child->chain_code, hmacsha512_result, 32, 32);
 }

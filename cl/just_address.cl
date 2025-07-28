@@ -20,11 +20,11 @@ __kernel void just_address(ulong mnemonic_start_hi,ulong mnemonic_start_lo, __gl
   extended_private_key_t master_private;
   extended_public_key_t master_public;
   
-  new_master_from_seed(network, &seed, &master_private);
+  new_master_from_seed(network, seed, &master_private);
   public_from_private(&master_private, &master_public);
 
   uchar serialized_master_public[33];
-  serialized_public_key(&master_public, &serialized_master_public);
+  serialized_public_key(&master_public, serialized_master_public);
   extended_private_key_t target_key;
   extended_public_key_t target_public_key;
   hardened_private_child_from_private(&master_private, &target_key, 49);
@@ -35,5 +35,5 @@ __kernel void just_address(ulong mnemonic_start_hi,ulong mnemonic_start_lo, __gl
   public_from_private(&target_key, &target_public_key);
 
   uchar raw_address[25] = {0};
-  p2shwpkh_address_for_public_key(&target_public_key, &raw_address);
+  p2shwpkh_address_for_public_key(&target_public_key, raw_address);
 }
