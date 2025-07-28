@@ -15,6 +15,7 @@ import hashlib
 import itertools
 from pathlib import Path
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 import numpy as np
 
@@ -137,6 +138,12 @@ def main() -> None:
                         help="target address in standard Base58Check form")
     parser.add_argument("--batch-size", type=int, default=262144,
                         help="number of mnemonics to test per GPU batch")
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=2,
+        help="number of CPU threads used to dispatch GPU work",
+    )
     args = parser.parse_args()
 
     print("Starting search at", datetime.utcnow().isoformat(sep=" ", timespec="seconds"))
@@ -171,7 +178,7 @@ def main() -> None:
         last_word_idx = wordlist.index(last_word_given)
 
     ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
+    queues = [cl.CommandQueue(ctx) for _ in range(max(1, args.threads))]
     prog = cl.Program(ctx, load_kernel_source()).build()
     target_buf = cl.Buffer(ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=target_bytes)
 
@@ -180,21 +187,46 @@ def main() -> None:
 
     total_candidates = (2048 ** len(unknown_pos)) * (1 if last_word_idx is not None else 128)
     processed = 0
+    found_mnemonic: str | None = None
 
-    def process_batch() -> str | None:
-        nonlocal processed
+    executor = ThreadPoolExecutor(max_workers=args.threads)
+    pending: set = set()
+    sizes: dict[object, int] = {}
+    next_queue = 0
+
+    def submit_batch() -> None:
+        nonlocal next_queue
         if not hi_batch:
-            return None
+            return
         hi_array = np.array(hi_batch, dtype=np.uint64)
         lo_array = np.array(lo_batch, dtype=np.uint64)
         hi_batch.clear()
         lo_batch.clear()
-        res = run_batch(prog, queue, ctx, hi_array, lo_array, target_buf)
-        processed += hi_array.size
-        percent = processed / total_candidates * 100
-        print(f"Processed {processed}/{total_candidates} mnemonics ({percent:.2f}%)")
-        return res
+        q = queues[next_queue % len(queues)]
+        next_queue += 1
+        fut = executor.submit(run_batch, prog, q, ctx, hi_array, lo_array, target_buf)
+        pending.add(fut)
+        sizes[fut] = hi_array.size
 
+    def collect_done(block: bool = False) -> bool:
+        nonlocal processed, found_mnemonic
+        if not pending:
+            return False
+        wait_time = None if block else 0
+        done, _ = wait(pending, timeout=wait_time, return_when=FIRST_COMPLETED)
+        for fut in list(done):
+            pending.remove(fut)
+            batch_size = sizes.pop(fut)
+            res = fut.result()
+            processed += batch_size
+            percent = processed / total_candidates * 100
+            print(f"Processed {processed}/{total_candidates} mnemonics ({percent:.2f}%)")
+            if res and found_mnemonic is None:
+                found_mnemonic = res
+                return True
+        return False
+
+    outer_break = False
     for combo in itertools.product(range(2048), repeat=len(unknown_pos)):
         indices = first11_indices.copy()
         for pos, idx in zip(unknown_pos, combo):
@@ -212,22 +244,27 @@ def main() -> None:
             hi_batch.append(entropy >> 64)
             lo_batch.append(entropy & ((1 << 64) - 1))
             if len(hi_batch) >= args.batch_size:
-                found = process_batch()
-                if found:
-                    print(
-                        "Seed found at",
-                        datetime.utcnow().isoformat(sep=" ", timespec="seconds"),
-                    )
-                    print("Found mnemonic:", found)
-                    return
+                submit_batch()
+                if collect_done():
+                    outer_break = True
+                    break
+        if outer_break or found_mnemonic is not None:
+            break
 
-    found = process_batch()
-    if found:
+    if not found_mnemonic:
+        submit_batch()
+        while pending and not found_mnemonic:
+            if collect_done(block=True):
+                break
+
+    executor.shutdown(cancel_futures=True)
+
+    if found_mnemonic:
         print(
             "Seed found at",
             datetime.utcnow().isoformat(sep=" ", timespec="seconds"),
         )
-        print("Found mnemonic:", found)
+        print("Found mnemonic:", found_mnemonic)
     else:
         print("Mnemonic not found")
 

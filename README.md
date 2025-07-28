@@ -28,7 +28,8 @@ Run the solver by providing a 12 word mnemonic and the target address. Unknown
 words can be represented with ``*``. ``target`` should be provided as a standard
 Bitcoin address in Base58Check format.  Use ``--batch-size`` to control how many
 candidate mnemonics are processed per GPU launch.  A value around ``262144``
-works well on an RTX 3070.
+works well on an RTX 3070. The solver can dispatch work from several CPU
+threads using ``--threads`` (default ``2``) to improve GPU utilisation.
 
 After each batch the solver prints how many candidate mnemonics have been
 tested and the overall percentage completed so you can monitor progress.
@@ -36,7 +37,8 @@ It also reports the start time and the exact time a matching mnemonic is found.
 
 ```
 python solver.py --mnemonic "abandon ability * about above absent * * * * * *" \
-    --target 3HX5tttedDehKWTTGpxaPAbo157fnjn89s --batch-size 262144
+    --target 3HX5tttedDehKWTTGpxaPAbo157fnjn89s --batch-size 262144 \
+    --threads 2
 ```
 
 The program will iterate over all possible combinations of the ``*`` positions
