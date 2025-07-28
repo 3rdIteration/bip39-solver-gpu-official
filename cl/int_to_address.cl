@@ -1,50 +1,51 @@
 
 
-__kernel void int_to_address(ulong mnemonic_start_hi, ulong mnemonic_start_lo,
+__kernel void int_to_address(__global const ulong *mnemonic_hi,
+                             __global const ulong *mnemonic_lo,
                              __global uchar *target_mnemonic,
                              __global uchar *found_mnemonic,
                              __constant uchar *target_address) {
   ulong idx = get_global_id(0);
 
-  ulong mnemonic_lo = mnemonic_start_lo + idx;
-  ulong mnemonic_hi = mnemonic_start_hi;
+  ulong m_lo_val = mnemonic_lo[idx];
+  ulong m_hi_val = mnemonic_hi[idx];
 
   uchar bytes[16];
-  bytes[15] = mnemonic_lo & 0xFF;
-  bytes[14] = (mnemonic_lo >> 8) & 0xFF;
-  bytes[13] = (mnemonic_lo >> 16) & 0xFF;
-  bytes[12] = (mnemonic_lo >> 24) & 0xFF;
-  bytes[11] = (mnemonic_lo >> 32) & 0xFF;
-  bytes[10] = (mnemonic_lo >> 40) & 0xFF;
-  bytes[9] = (mnemonic_lo >> 48) & 0xFF;
-  bytes[8] = (mnemonic_lo >> 56) & 0xFF;
+  bytes[15] = m_lo_val & 0xFF;
+  bytes[14] = (m_lo_val >> 8) & 0xFF;
+  bytes[13] = (m_lo_val >> 16) & 0xFF;
+  bytes[12] = (m_lo_val >> 24) & 0xFF;
+  bytes[11] = (m_lo_val >> 32) & 0xFF;
+  bytes[10] = (m_lo_val >> 40) & 0xFF;
+  bytes[9] = (m_lo_val >> 48) & 0xFF;
+  bytes[8] = (m_lo_val >> 56) & 0xFF;
   
-  bytes[7] = mnemonic_hi & 0xFF;
-  bytes[6] = (mnemonic_hi >> 8) & 0xFF;
-  bytes[5] = (mnemonic_hi >> 16) & 0xFF;
-  bytes[4] = (mnemonic_hi >> 24) & 0xFF;
-  bytes[3] = (mnemonic_hi >> 32) & 0xFF;
-  bytes[2] = (mnemonic_hi >> 40) & 0xFF;
-  bytes[1] = (mnemonic_hi >> 48) & 0xFF;
-  bytes[0] = (mnemonic_hi >> 56) & 0xFF;
+  bytes[7] = m_hi_val & 0xFF;
+  bytes[6] = (m_hi_val >> 8) & 0xFF;
+  bytes[5] = (m_hi_val >> 16) & 0xFF;
+  bytes[4] = (m_hi_val >> 24) & 0xFF;
+  bytes[3] = (m_hi_val >> 32) & 0xFF;
+  bytes[2] = (m_hi_val >> 40) & 0xFF;
+  bytes[1] = (m_hi_val >> 48) & 0xFF;
+  bytes[0] = (m_hi_val >> 56) & 0xFF;
 
   uchar mnemonic_hash[32];
   sha256((__private const unsigned int *)bytes, 16, (__private unsigned int *)mnemonic_hash);
   uchar checksum = (mnemonic_hash[0] >> 4) & ((1 << 4)-1);
   
   ushort indices[12];
-  indices[0] = (mnemonic_hi >> 53) & 2047;
-  indices[1] = (mnemonic_hi >> 42) & 2047;
-  indices[2] = (mnemonic_hi >> 31) & 2047;
-  indices[3] = (mnemonic_hi >> 20) & 2047;
-  indices[4] = (mnemonic_hi >> 9)  & 2047;
-  indices[5] = ((mnemonic_hi & ((1 << 9)-1)) << 2) | ((mnemonic_lo >> 62) & 3);
-  indices[6] = (mnemonic_lo >> 51) & 2047;
-  indices[7] = (mnemonic_lo >> 40) & 2047;
-  indices[8] = (mnemonic_lo >> 29) & 2047;
-  indices[9] = (mnemonic_lo >> 18) & 2047;
-  indices[10] = (mnemonic_lo >> 7) & 2047;
-  indices[11] = ((mnemonic_lo & ((1 << 7)-1)) << 4) | checksum;
+  indices[0] = (m_hi_val >> 53) & 2047;
+  indices[1] = (m_hi_val >> 42) & 2047;
+  indices[2] = (m_hi_val >> 31) & 2047;
+  indices[3] = (m_hi_val >> 20) & 2047;
+  indices[4] = (m_hi_val >> 9)  & 2047;
+  indices[5] = ((m_hi_val & ((1 << 9)-1)) << 2) | ((m_lo_val >> 62) & 3);
+  indices[6] = (m_lo_val >> 51) & 2047;
+  indices[7] = (m_lo_val >> 40) & 2047;
+  indices[8] = (m_lo_val >> 29) & 2047;
+  indices[9] = (m_lo_val >> 18) & 2047;
+  indices[10] = (m_lo_val >> 7) & 2047;
+  indices[11] = ((m_lo_val & ((1 << 7)-1)) << 4) | checksum;
 
   uchar mnemonic[180] = {0};
   uchar mnemonic_length = 11 + word_lengths[indices[0]] + word_lengths[indices[1]] + word_lengths[indices[2]] + word_lengths[indices[3]] + word_lengths[indices[4]] + word_lengths[indices[5]] + word_lengths[indices[6]] + word_lengths[indices[7]] + word_lengths[indices[8]] + word_lengths[indices[9]] + word_lengths[indices[10]] + word_lengths[indices[11]];

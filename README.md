@@ -26,11 +26,13 @@ pip install pyopencl numpy
 
 Run the solver by providing a 12 word mnemonic and the target address. Unknown
 words can be represented with ``*``. ``target`` should be provided as a standard
-Bitcoin address in Base58Check format.
+Bitcoin address in Base58Check format.  Use ``--batch-size`` to control how many
+candidate mnemonics are processed per GPU launch.  A value around ``262144``
+works well on an RTX 3070.
 
 ```
 python solver.py --mnemonic "abandon ability * about above absent * * * * * *" \
-    --target 3HX5tttedDehKWTTGpxaPAbo157fnjn89s
+    --target 3HX5tttedDehKWTTGpxaPAbo157fnjn89s --batch-size 262144
 ```
 
 The program will iterate over all possible combinations of the ``*`` positions

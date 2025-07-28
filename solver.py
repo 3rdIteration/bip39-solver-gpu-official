@@ -94,17 +94,27 @@ def entropy_from_indices(indices: list[int], last7: int) -> int:
     return int(bitstr, 2)
 
 
-def run_kernel(prog: cl.Program, queue: cl.CommandQueue, ctx: cl.Context, start: int, target_buf: cl.Buffer) -> str | None:
+def run_batch(
+    prog: cl.Program,
+    queue: cl.CommandQueue,
+    ctx: cl.Context,
+    hi_batch: np.ndarray,
+    lo_batch: np.ndarray,
+    target_buf: cl.Buffer,
+) -> str | None:
+    """Run the GPU kernel on a batch of entropy values."""
+
+    n = hi_batch.size
+
     output_buf = cl.Buffer(ctx, cl.mem_flags.WRITE_ONLY, size=120)
     found_buf = cl.Buffer(ctx, cl.mem_flags.WRITE_ONLY, size=1)
-
-    start_hi = np.uint64(start >> 64)
-    start_lo = np.uint64(start & ((1 << 64) - 1))
+    hi_buf = cl.Buffer(ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=hi_batch)
+    lo_buf = cl.Buffer(ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=lo_batch)
 
     kernel = prog.int_to_address
-    kernel.set_args(start_hi, start_lo, output_buf, found_buf, target_buf)
+    kernel.set_args(hi_buf, lo_buf, output_buf, found_buf, target_buf)
 
-    cl.enqueue_nd_range_kernel(queue, kernel, (1,), None)
+    cl.enqueue_nd_range_kernel(queue, kernel, (n,), None)
     cl.enqueue_barrier(queue)
 
     output = np.empty(120, dtype=np.uint8)
@@ -124,6 +134,8 @@ def main() -> None:
     parser.add_argument("--mnemonic", required=True, help="12 word mnemonic with '*' for unknown words")
     parser.add_argument("--target", required=True,
                         help="target address in standard Base58Check form")
+    parser.add_argument("--batch-size", type=int, default=262144,
+                        help="number of mnemonics to test per GPU batch")
     args = parser.parse_args()
 
     try:
@@ -160,6 +172,18 @@ def main() -> None:
     prog = cl.Program(ctx, load_kernel_source()).build()
     target_buf = cl.Buffer(ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=target_bytes)
 
+    hi_batch: list[int] = []
+    lo_batch: list[int] = []
+
+    def process_batch() -> str | None:
+        if not hi_batch:
+            return None
+        hi_array = np.array(hi_batch, dtype=np.uint64)
+        lo_array = np.array(lo_batch, dtype=np.uint64)
+        hi_batch.clear()
+        lo_batch.clear()
+        return run_batch(prog, queue, ctx, hi_array, lo_array, target_buf)
+
     for combo in itertools.product(range(2048), repeat=len(unknown_pos)):
         indices = first11_indices.copy()
         for pos, idx in zip(unknown_pos, combo):
@@ -174,12 +198,19 @@ def main() -> None:
             if last_word_idx is not None and w11 != last_word_idx:
                 continue
 
-            found = run_kernel(prog, queue, ctx, entropy, target_buf)
-            if found:
-                print("Found mnemonic:", found)
-                return
+            hi_batch.append(entropy >> 64)
+            lo_batch.append(entropy & ((1 << 64) - 1))
+            if len(hi_batch) >= args.batch_size:
+                found = process_batch()
+                if found:
+                    print("Found mnemonic:", found)
+                    return
 
-    print("Mnemonic not found")
+    found = process_batch()
+    if found:
+        print("Found mnemonic:", found)
+    else:
+        print("Mnemonic not found")
 
 
 if __name__ == "__main__":
