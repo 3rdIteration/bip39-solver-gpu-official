@@ -1,6 +1,9 @@
 
 
-__kernel void int_to_address(ulong mnemonic_start_hi,ulong mnemonic_start_lo, __global uchar * target_mnemonic, __global uchar * found_mnemonic) {
+__kernel void int_to_address(ulong mnemonic_start_hi, ulong mnemonic_start_lo,
+                             __global uchar *target_mnemonic,
+                             __global uchar *found_mnemonic,
+                             __constant uchar *target_address) {
   ulong idx = get_global_id(0);
 
   ulong mnemonic_lo = mnemonic_start_lo + idx;
@@ -117,8 +120,6 @@ __kernel void int_to_address(ulong mnemonic_start_hi,ulong mnemonic_start_lo, __
   uchar raw_address[25] = {0};
   p2shwpkh_address_for_public_key(&target_public_key, &raw_address);
 
-  uchar target_address[25] = {0x05, 0xAD, 0xA1, 0x2B, 0x11, 0x3D, 0x9B, 0x19, 0x61, 0x47, 0x57, 0xD1, 0x9F, 0xC0, 0x8D, 0xDD, 0x53, 0x4B, 0xF0, 0x22, 0x76, 0xBD, 0x3A, 0x31, 0x46};
- 
   bool found_target = 1;
   for(int i=0;i<25;i++) {
     if(raw_address[i] != target_address[i]){
