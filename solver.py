@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import itertools
 from pathlib import Path
+from datetime import datetime
 
 import numpy as np
 
@@ -138,6 +139,8 @@ def main() -> None:
                         help="number of mnemonics to test per GPU batch")
     args = parser.parse_args()
 
+    print("Starting search at", datetime.utcnow().isoformat(sep=" ", timespec="seconds"))
+
     try:
         target_bytes = b58decode_check(args.target)
     except ValueError as exc:
@@ -211,11 +214,19 @@ def main() -> None:
             if len(hi_batch) >= args.batch_size:
                 found = process_batch()
                 if found:
+                    print(
+                        "Seed found at",
+                        datetime.utcnow().isoformat(sep=" ", timespec="seconds"),
+                    )
                     print("Found mnemonic:", found)
                     return
 
     found = process_batch()
     if found:
+        print(
+            "Seed found at",
+            datetime.utcnow().isoformat(sep=" ", timespec="seconds"),
+        )
         print("Found mnemonic:", found)
     else:
         print("Mnemonic not found")

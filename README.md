@@ -32,6 +32,7 @@ works well on an RTX 3070.
 
 After each batch the solver prints how many candidate mnemonics have been
 tested and the overall percentage completed so you can monitor progress.
+It also reports the start time and the exact time a matching mnemonic is found.
 
 ```
 python solver.py --mnemonic "abandon ability * about above absent * * * * * *" \
