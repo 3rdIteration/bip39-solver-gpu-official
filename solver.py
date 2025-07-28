@@ -175,14 +175,22 @@ def main() -> None:
     hi_batch: list[int] = []
     lo_batch: list[int] = []
 
+    total_candidates = (2048 ** len(unknown_pos)) * (1 if last_word_idx is not None else 128)
+    processed = 0
+
     def process_batch() -> str | None:
+        nonlocal processed
         if not hi_batch:
             return None
         hi_array = np.array(hi_batch, dtype=np.uint64)
         lo_array = np.array(lo_batch, dtype=np.uint64)
         hi_batch.clear()
         lo_batch.clear()
-        return run_batch(prog, queue, ctx, hi_array, lo_array, target_buf)
+        res = run_batch(prog, queue, ctx, hi_array, lo_array, target_buf)
+        processed += hi_array.size
+        percent = processed / total_candidates * 100
+        print(f"Processed {processed}/{total_candidates} mnemonics ({percent:.2f}%)")
+        return res
 
     for combo in itertools.product(range(2048), repeat=len(unknown_pos)):
         indices = first11_indices.copy()

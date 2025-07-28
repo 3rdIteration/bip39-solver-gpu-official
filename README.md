@@ -30,6 +30,9 @@ Bitcoin address in Base58Check format.  Use ``--batch-size`` to control how many
 candidate mnemonics are processed per GPU launch.  A value around ``262144``
 works well on an RTX 3070.
 
+After each batch the solver prints how many candidate mnemonics have been
+tested and the overall percentage completed so you can monitor progress.
+
 ```
 python solver.py --mnemonic "abandon ability * about above absent * * * * * *" \
     --target 3HX5tttedDehKWTTGpxaPAbo157fnjn89s --batch-size 262144
