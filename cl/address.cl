@@ -52,7 +52,7 @@ void hmac_sha512(uchar *key, int key_length_bytes, uchar *message, int message_l
     inner_concat[x+128] = message[x];
   }
 
-  sha512(inner_concat, 128+message_length_bytes, output);
+  sha512((unsigned long *)inner_concat, 128+message_length_bytes, (ulong *)output);
 
   for(int x=0;x<128;x++){
     inner_concat[x] = opad_key[x];
@@ -61,7 +61,7 @@ void hmac_sha512(uchar *key, int key_length_bytes, uchar *message, int message_l
     inner_concat[x+128] = output[x];
   }
 
-  sha512(inner_concat, 192, output);
+  sha512((unsigned long *)inner_concat, 192, (ulong *)output);
 }
 
 void new_master_from_seed(uchar network, uchar *seed, extended_private_key_t * master) {
@@ -101,13 +101,13 @@ void uncompressed_public_key(extended_public_key_t *pub, uchar *serialized_key) 
 }
 
 void sha256d(uchar *input, int input_len, char * output) {
-  sha256(input, input_len, output);
-  sha256(output, 32, output);
+  sha256((__private const unsigned int *)input, input_len, (__private unsigned int *)output);
+  sha256((__private const unsigned int *)output, 32, (__private unsigned int *)output);
 }
 
 void hash160(uchar *input, int input_len, char * output) {
   uchar sha256_result[32] = { 0 };
-  sha256(input, input_len, sha256_result);
+  sha256((__private const unsigned int *)input, input_len, (__private unsigned int *)sha256_result);
   ripemd160(sha256_result, 32, output);
 }
 

@@ -29,7 +29,7 @@ __kernel void int_to_address(ulong mnemonic_start_hi, ulong mnemonic_start_lo,
   bytes[0] = (mnemonic_hi >> 56) & 0xFF;
 
   uchar mnemonic_hash[32];
-  sha256(&bytes, 16, &mnemonic_hash);
+  sha256((__private const unsigned int *)bytes, 16, (__private unsigned int *)mnemonic_hash);
   uchar checksum = (mnemonic_hash[0] >> 4) & ((1 << 4)-1);
   
   ushort indices[12];
@@ -86,16 +86,16 @@ __kernel void int_to_address(ulong mnemonic_start_hi, ulong mnemonic_start_lo,
     key_previous_concat[x+128] = salt[x];
   }
 
-  sha512(key_previous_concat, 140, sha512_result);
+  sha512((unsigned long *)key_previous_concat, 140, (ulong *)sha512_result);
   copy_pad_previous(opad_key, sha512_result, key_previous_concat);
-  sha512(key_previous_concat, 192, sha512_result);
+  sha512((unsigned long *)key_previous_concat, 192, (ulong *)sha512_result);
   xor_seed_with_round(seed, sha512_result);
 
   for(int x=1;x<2048;x++){
     copy_pad_previous(ipad_key, sha512_result, key_previous_concat);
-    sha512(key_previous_concat, 192, sha512_result);
+    sha512((unsigned long *)key_previous_concat, 192, (ulong *)sha512_result);
     copy_pad_previous(opad_key, sha512_result, key_previous_concat);
-    sha512(key_previous_concat, 192, sha512_result);
+    sha512((unsigned long *)key_previous_concat, 192, (ulong *)sha512_result);
     xor_seed_with_round(seed, sha512_result);
   }
 

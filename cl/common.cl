@@ -9,13 +9,13 @@ static void memset(uchar *str, int c, size_t n){
   }
 }
 
-static void memcpy(uchar *dest, uchar *src, size_t n){
+static void memcpy(uchar *dest, const uchar *src, size_t n){
   for(int i=0;i<n;i++){
     dest[i] = src[i];
   }
 }
 
-static void memcpy_offset(uchar *dest, uchar *src, int offset, uchar bytes_to_copy){
+static void memcpy_offset(uchar *dest, const uchar *src, int offset, uchar bytes_to_copy){
   for(int i=0;i<bytes_to_copy;i++){
     dest[i] = src[offset+i];
   }
