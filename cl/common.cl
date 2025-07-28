@@ -3,21 +3,26 @@
 #define uint8_t uchar
 #define NULL 0
 
-static void memset(uchar *str, int c, size_t n){
+static void memset(void *dest, int c, size_t n){
+  uchar *d = (uchar *)dest;
   for(int i=0;i<n;i++){
-    str[i] = c;
+    d[i] = c;
   }
 }
 
-static void memcpy(uchar *dest, const uchar *src, size_t n){
+static void memcpy(void *dest, const void *src, size_t n){
+  uchar *d = (uchar *)dest;
+  const uchar *s = (const uchar *)src;
   for(int i=0;i<n;i++){
-    dest[i] = src[i];
+    d[i] = s[i];
   }
 }
 
-static void memcpy_offset(uchar *dest, const uchar *src, int offset, uchar bytes_to_copy){
+static void memcpy_offset(void *dest, const void *src, int offset, uchar bytes_to_copy){
+  uchar *d = (uchar *)dest;
+  const uchar *s = (const uchar *)src;
   for(int i=0;i<bytes_to_copy;i++){
-    dest[i] = src[offset+i];
+    d[i] = s[offset+i];
   }
 }
 

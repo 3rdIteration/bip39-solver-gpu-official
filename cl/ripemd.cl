@@ -20,7 +20,7 @@ void ripemd160_Init(RIPEMD160_CTX *ctx)
     ctx->state[4] = 0xC3D2E1F0;
 }
 
-void ripemd160_process( RIPEMD160_CTX *ctx, const uint8_t data[64] )
+void ripemd160_process(RIPEMD160_CTX *ctx, __private const uint8_t *data)
 {
     uint32_t A, B, C, D, E, Ap, Bp, Cp, Dp, Ep, X[16];
 
@@ -192,7 +192,7 @@ void ripemd160_process( RIPEMD160_CTX *ctx, const uint8_t data[64] )
     ctx->state[0] = C;
 }
 
-void ripemd160_Update( RIPEMD160_CTX *ctx, const uint8_t *input, uint32_t ilen )
+void ripemd160_Update(RIPEMD160_CTX *ctx, __private const uint8_t *input, uint32_t ilen)
 {
     uint32_t fill;
     uint32_t left;
@@ -211,8 +211,8 @@ void ripemd160_Update( RIPEMD160_CTX *ctx, const uint8_t *input, uint32_t ilen )
 
     if( left && ilen >= fill )
     {
-        memcpy( (void *) (ctx->buffer + left), input, fill );
-        ripemd160_process( ctx, ctx->buffer );
+        memcpy( (void *)(ctx->buffer + left), input, fill );
+        ripemd160_process( ctx, (__private const uint8_t *)ctx->buffer );
         input += fill;
         ilen  -= fill;
         left = 0;
@@ -220,7 +220,7 @@ void ripemd160_Update( RIPEMD160_CTX *ctx, const uint8_t *input, uint32_t ilen )
 
     while( ilen >= 64 )
     {
-        ripemd160_process( ctx, input );
+        ripemd160_process( ctx, (__private const uint8_t *)input );
         input += 64;
         ilen  -= 64;
     }
@@ -231,7 +231,7 @@ void ripemd160_Update( RIPEMD160_CTX *ctx, const uint8_t *input, uint32_t ilen )
     }
 }
 
-void ripemd160_Final( RIPEMD160_CTX *ctx, uint8_t output[20] )
+void ripemd160_Final(RIPEMD160_CTX *ctx, __private uint8_t output[20])
 {
     uint32_t last, padn;
     uint32_t high, low;
@@ -266,7 +266,7 @@ void ripemd160_Final( RIPEMD160_CTX *ctx, uint8_t output[20] )
     memzero(ctx, sizeof(RIPEMD160_CTX));
 }
 
-void ripemd160(const uint8_t *msg, uint32_t msg_len, uint8_t hash[20])
+void ripemd160(__private const uint8_t *msg, uint32_t msg_len, __private uint8_t hash[20])
 {
     RIPEMD160_CTX ctx;
     ripemd160_Init( &ctx );
